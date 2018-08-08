@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+import shlex
+import subprocess
+
+
+def info(string):
+    print("[\033[32m+\033[0m] {}".format(string))
+
+
+def error(string):
+    print("[\033[31m!\033[0m] {}".format(string))
+
+
+def determine_local_range(command):
+    command = shlex.split(command)
+    retval = subprocess.check_output(command)
+    data = {}
+    try:
+        for item in retval.split("\n"):
+            address = item.split("(")[1].split(")")[0]
+            hw_address = item.split("at")[1].split(" ")[1].strip()
+            data[address] = hw_address
+    except IndexError:
+        pass
+    return data
+
+
+def ping_range(items):
+    tmp = ""
+    for item in items.keys():
+        command = "ping -c1 -s10 {}".format(item)
+        command = shlex.split(command)
+        try:
+            data = subprocess.check_output(command)
+            tmp += data
+        except subprocess.CalledProcessError:
+            pass
+    with open("results.txt", "a+") as f:
+        f.write(tmp)
+    return tmp
+
+
+def determine_live_hosts(data, available_hosts):
+    data = data.split("\n\n")
+    retval = {}
+    for results in data:
+        if "0.0% packet loss" in results:
+            live = results.split("---")[1].split(" ")[1]
+            if live in available_hosts.keys():
+                retval[live] = available_hosts[live]
+    return retval
+
+
+def write_to_file(data):
+    today = str(datetime.datetime.today()).split(" ")[0]
+    filename = "{}-results.txt".format(today.replace("-", ""))
+    with open(filename, "a+") as res:
+        for item in data.keys():
+            res.write("{}\n".format(item))
+    return filename
+
+
+if __name__ == "__main__":
+    import datetime
+    try:
+        import whichcraft
+
+        required = ["arp", "ping"]
+        for req in required:
+            location = whichcraft.which(req)
+            if not location:
+                error("{} is not on the system, install the tool to continue".format(req))
+                exit(1)
+    except ImportError:
+        error(
+            "cannot determine if required tools are on the system or not (to fix: `pip install whichcraft`), "
+            "skipping determination.."
+        )
+    try:
+        arp_command = "arp -a"
+        info("running '{}' through current connected network..".format(arp_command))
+        determined_range = determine_local_range(arp_command)
+        info("determining live hosts..")
+        hosts = ping_range(determined_range)
+        living = determine_live_hosts(hosts, determined_range)
+        info("LIVING HOSTS:")
+        print("{}\n{}{}IP:\t\t\tMAC: {}\n{}".format("-" * 30, "|", " " * 3, "|", "-" * 30))
+        for item in living.keys():
+            info("{}\t\t{}".format(item, living[item]))
+        f = write_to_file(living)
+        print("-" * 30)
+        info("data written to {}".format(f))
+    except KeyboardInterrupt:
+        error("user quit")
