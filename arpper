@@ -36,8 +36,6 @@ def ping_range(items):
             tmp += data
         except subprocess.CalledProcessError:
             pass
-    with open("results.txt", "a+") as f:
-        f.write(tmp)
     return tmp
 
 
