@@ -77,7 +77,7 @@ if __name__ == "__main__":
         )
     try:
         arp_command = "arp -a"
-        info("running '{}' through current connected network..".format(arp_command))
+        info("running '{0}' through current connected network..".format(arp_command))
         determined_range = determine_local_range(arp_command)
         info("determining live hosts..")
         hosts = ping_range(determined_range)
